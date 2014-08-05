@@ -45,17 +45,31 @@ end
 local default_lang = ngx.var.default_lang or "en"
 local folders = scandir(ngx.var.ngx_html_path)
 
-local cleaned = ngx.re.sub(ngx.var.http_accept_language, "^.*:", "")
+local lang_header = ngx.var.http_accept_language
+if ( lang_header == nil ) then
+    ngx.redirect( "/" .. default_lang )
+    return
+end
+
+local cleaned = ngx.re.sub(lang_header, "^.*:", "")
 local options = {}
-local iterator, err = ngx.re.gmatch(cleaned, "([^,;]+)(;q=([^,]+))?")
+local iterator, err = ngx.re.gmatch(cleaned, "\\s*([a-z]+(?:-[a-z])*)\\s*(?:;q=([0-9]+(.[0-9]*)?))?\\s*(,|$)", "i")
 for m, err in iterator do
     local lang = m[1]
     local priority = 1
-    if m[3] ~= nil then
-        priority = tonumber(m[3])
+    if m[2] ~= nil then
+        priority = tonumber(m[2])
+        if priority == nil then
+            priority = 1
+        end
     end
     table.insert(options, {lang, priority})
 end
+
+--for index, lang in pairs(options) do
+--    ngx.print(lang[1] .. " := " .. lang[2] .. "<br>")
+--end
+--ngx.print("\n")
 
 table.sort(options, function(a,b) return b[2] < a[2] end)
 
